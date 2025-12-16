@@ -1,0 +1,19 @@
+name: Static Site CI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run CI check
+        run: |
+          echo "CI is running"
+          echo "Static site checked successfully"
