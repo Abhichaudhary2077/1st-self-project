@@ -5,6 +5,7 @@ on:
     branches:
       - main
 
+# 🔐 Permissions needed for Pages + GHCR
 permissions:
   contents: read
   pages: write
@@ -12,14 +13,18 @@ permissions:
   packages: write
 
 jobs:
+  # ========================
+  # 1️⃣ CI — Validate source
+  # ========================
   build:
+    name: CI - Validate & Package
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check required files exist
+      - name: Ensure required files exist
         run: |
           test -f index.html
           test -f style.css
@@ -30,48 +35,56 @@ jobs:
           npm install -g htmlhint
           htmlhint index.html
 
-      - name: Check JavaScript syntax
+      - name: Validate JavaScript syntax
         run: node --check script.js
 
-      - name: Package website
+      - name: Package static website
         run: |
           mkdir build
           cp index.html style.css script.js build/
-          zip -r portfolio-site.zip build
+          zip -r site.zip build
 
-      - name: Upload artifact
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: site
-          path: portfolio-site.zip
+          path: site.zip
 
-  deploy:
+  # ========================
+  # 2️⃣ CD — GitHub Pages
+  # ========================
+  deploy-pages:
+    name: CD - Deploy to GitHub Pages
     needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download artifact
+      - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: site
 
-      - name: Unzip artifact
-        run: unzip portfolio-site.zip
+      - name: Extract artifact
+        run: unzip site.zip
 
-      - name: Upload Pages artifact
+      - name: Prepare Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: build
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy to Pages
         uses: actions/deploy-pages@v4
 
+  # ========================
+  # 3️⃣ CD — Docker Image
+  # ========================
   docker-build:
+    name: CD - Build & Push Docker Image
     needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Login to GitHub Container Registry
@@ -80,7 +93,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push Docker image
+
+      - name: Build & push Docker image
         run: |
           OWNER_LOWER=${GITHUB_REPOSITORY_OWNER,,}
           IMAGE=ghcr.io/$OWNER_LOWER/web-devops-foundations
